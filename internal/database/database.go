@@ -83,3 +83,12 @@ func GetNotes(tagFilter string) ([]Note, error) {
 	}
 	return notes, nil
 }
+
+func DeleteNote(id int) error {
+	query := `DELETE FROM notes WHERE id = ?`
+	_, err := DB.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("could not delete note: %v", err)
+	}
+	return nil
+}
