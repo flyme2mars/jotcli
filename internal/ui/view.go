@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/flyme2mars/jotcli/internal/database"
 	tea "github.com/charmbracelet/bubbletea"
@@ -88,7 +89,11 @@ func (m model) View() string {
 
 	for i, note := range m.notes {
 		cursor := "  "
-		line := fmt.Sprintf("[%s] %s", note.Tag, note.Content)
+		// Replace actual newlines and literal \n with spaces for the list view
+		displayContent := strings.ReplaceAll(note.Content, "\n", " ")
+		displayContent = strings.ReplaceAll(displayContent, "\\n", " ")
+		
+		line := fmt.Sprintf("[%s] %s", note.Tag, displayContent)
 		
 		if len(line) > 50 {
 			line = line[:47] + "..."
@@ -105,7 +110,9 @@ func (m model) View() string {
 	// Preview section for the selected note
 	if len(m.notes) > 0 {
 		selectedNote := m.notes[m.cursor]
-		rendered, _ := glamour.Render(selectedNote.Content, "dark")
+		// Ensure literal \n are treated as real newlines for Glamour
+		previewContent := strings.ReplaceAll(selectedNote.Content, "\\n", "\n")
+		rendered, _ := glamour.Render(previewContent, "dark")
 		s += "\n" + previewStyle.Render(rendered)
 	}
 

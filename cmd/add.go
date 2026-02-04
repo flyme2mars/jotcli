@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/spf13/cobra"
@@ -17,7 +18,9 @@ var addCmd = &cobra.Command{
 	Short: "Add a new note",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		note := args[0]
+		note := strings.Join(args, " ")
+		// Convert literal \n to actual newlines
+		note = strings.ReplaceAll(note, "\\n", "\n")
 		
 		err := database.AddNote(note, tag, priority)
 		if err != nil {
