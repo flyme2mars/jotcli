@@ -54,3 +54,32 @@ func AddNote(content, tag, priority string) error {
 	}
 	return nil
 }
+
+func GetNotes(tagFilter string) ([]Note, error) {
+	var rows *sql.Rows
+	var err error
+
+	if tagFilter != "" {
+		query := `SELECT id, content, tag, priority, created_at FROM notes WHERE tag = ? ORDER BY created_at DESC`
+		rows, err = DB.Query(query, tagFilter)
+	} else {
+		query := `SELECT id, content, tag, priority, created_at FROM notes ORDER BY created_at DESC`
+		rows, err = DB.Query(query)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var n Note
+		err := rows.Scan(&n.ID, &n.Content, &n.Tag, &n.Priority, &n.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		notes = append(notes, n)
+	}
+	return notes, nil
+}
