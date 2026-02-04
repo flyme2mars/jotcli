@@ -1,1 +1,11 @@
-/jot\nbin/
+# Binaries
+/jot
+/bin
+/dist
+*.exe
+
+# Databases
+*.db
+
+# OS files
+.DS_Store
