@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/flyme2mars/jot/internal/database"
+	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/spf13/cobra"
 )
 

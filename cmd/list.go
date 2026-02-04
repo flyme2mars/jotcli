@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/flyme2mars/jot/internal/database"
+	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )

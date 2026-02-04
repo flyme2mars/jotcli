@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/flyme2mars/jot/internal/database"
+	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "jot",
-	Short: "jot is a CLI tool for capturing thoughts",
+	Use:   "jotcli",
+	Short: "jotcli is a CLI tool for capturing thoughts",
 	Long:  `A quick and efficient way to capture notes, tag them, and view them in your terminal.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// This runs BEFORE any subcommand

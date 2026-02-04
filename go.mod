@@ -1,4 +1,4 @@
-module github.com/flyme2mars/jot
+module github.com/flyme2mars/jotcli
 
 go 1.25.6
 

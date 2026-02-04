@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/flyme2mars/jot/internal/ui"
+	"github.com/flyme2mars/jotcli/internal/ui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )

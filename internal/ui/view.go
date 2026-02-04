@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 
-	"github.com/flyme2mars/jot/internal/database"
+	"github.com/flyme2mars/jotcli/internal/database"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
