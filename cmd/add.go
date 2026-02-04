@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/flyme2mars/jot/internal/database"
 	"github.com/spf13/cobra"
 )
 
@@ -17,14 +18,14 @@ var addCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		note := args[0]
-		fmt.Printf("Note: %s\n", note)
-		if tag != "" {
-			fmt.Printf("Tag: %s\n", tag)
+		
+		err := database.AddNote(note, tag, priority)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
 		}
-		if priority != "" {
-			fmt.Printf("Priority: %s\n", priority)
-		}
-		fmt.Println("Note saved (mock)!")
+
+		fmt.Printf("✅ Note saved: %s\n", note)
 	},
 }
 
