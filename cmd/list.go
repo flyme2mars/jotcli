@@ -72,7 +72,7 @@ var listCmd = &cobra.Command{
 			Border(lipgloss.NormalBorder()).
 			BorderStyle(borderStyle).
 			StyleFunc(func(row, col int) lipgloss.Style {
-				if row == 0 {
+				if row == table.HeaderRow {
 					return headerStyle
 				}
 				return cellStyle
