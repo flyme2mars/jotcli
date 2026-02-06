@@ -84,6 +84,27 @@ func GetNotes(tagFilter string) ([]Note, error) {
 	return notes, nil
 }
 
+func GetNoteByID(id int) (*Note, error) {
+	query := `SELECT id, content, tag, priority, created_at FROM notes WHERE id = ?`
+	row := DB.QueryRow(query, id)
+
+	var n Note
+	err := row.Scan(&n.ID, &n.Content, &n.Tag, &n.Priority, &n.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &n, nil
+}
+
+func UpdateNote(id int, content string) error {
+	query := `UPDATE notes SET content = ? WHERE id = ?`
+	_, err := DB.Exec(query, content, id)
+	return err
+}
+
 func DeleteNote(id int) error {
 	query := `DELETE FROM notes WHERE id = ?`
 	_, err := DB.Exec(query, id)
