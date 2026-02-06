@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/flyme2mars/jotcli/internal/database"
@@ -18,11 +20,15 @@ var (
 	previewStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).BorderForeground(lipgloss.Color("240"))
 )
 
+type editFinishedMsg struct{ err error }
+
 type model struct {
-	notes    []database.Note
-	cursor   int
-	err      error
-	quitting bool
+	notes       []database.Note
+	cursor      int
+	err         error
+	quitting    bool
+	editingFile string
+	editingID   int
 }
 
 func InitialModel() model {
@@ -40,6 +46,35 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case editFinishedMsg:
+		if msg.err != nil {
+			m.err = msg.err
+			return m, nil
+		}
+
+		// Read the updated content
+		updatedContent, err := os.ReadFile(m.editingFile)
+		if err != nil {
+			m.err = err
+			return m, nil
+		}
+
+		// Save back to database
+		err = database.UpdateNote(m.editingID, string(updatedContent))
+		if err != nil {
+			m.err = err
+			return m, nil
+		}
+
+		// Clean up
+		os.Remove(m.editingFile)
+		m.editingFile = ""
+		m.editingID = 0
+
+		// Refresh notes
+		m.notes, m.err = database.GetNotes("")
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -52,6 +87,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.cursor < len(m.notes)-1 {
 				m.cursor++
+			}
+		case "e":
+			if len(m.notes) > 0 {
+				note := m.notes[m.cursor]
+				
+				// Create temp file
+				tmpFile, err := os.CreateTemp("", "jot-*.md")
+				if err != nil {
+					m.err = err
+					return m, nil
+				}
+				tmpFile.WriteString(note.Content)
+				tmpFile.Close()
+
+				m.editingFile = tmpFile.Name()
+				m.editingID = note.ID
+
+				// Determine editor
+				editor := os.Getenv("EDITOR")
+				if editor == "" {
+					editor = "vim"
+				}
+
+				c := exec.Command(editor, m.editingFile)
+				return m, tea.ExecProcess(c, func(err error) tea.Msg {
+					return editFinishedMsg{err}
+				})
 			}
 		case "delete", "x", "backspace":
 			if len(m.notes) > 0 {
@@ -116,7 +178,7 @@ func (m model) View() string {
 		s += "\n" + previewStyle.Render(rendered)
 	}
 
-	s += "\n(up/down: navigate • x: delete • q: quit)\n"
+	s += "\n(up/down: navigate • e: edit • x: delete • q: quit)\n"
 
 	return s
 }
