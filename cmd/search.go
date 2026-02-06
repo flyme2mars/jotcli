@@ -20,8 +20,7 @@ var searchCmd = &cobra.Command{
 		sqlQuery := `SELECT id, content, tag, priority, created_at FROM notes WHERE content LIKE ? ORDER BY created_at DESC`
 		rows, err := database.DB.Query(sqlQuery, "%"+query+"%")
 		if err != nil {
-			fmt.Printf("Error searching notes: %v
-", err)
+			fmt.Printf("Error searching notes: %v\n", err)
 			return
 		}
 		defer rows.Close()
@@ -31,16 +30,14 @@ var searchCmd = &cobra.Command{
 			var n database.Note
 			err := rows.Scan(&n.ID, &n.Content, &n.Tag, &n.Priority, &n.CreatedAt)
 			if err != nil {
-				fmt.Printf("Error scanning result: %v
-", err)
+				fmt.Printf("Error scanning result: %v\n", err)
 				return
 			}
 			notes = append(notes, n)
 		}
 
 		if len(notes) == 0 {
-			fmt.Printf("No notes found matching '%s'
-", query)
+			fmt.Printf("No notes found matching '%s'\n", query)
 			return
 		}
 

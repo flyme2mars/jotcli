@@ -23,29 +23,25 @@ var editCmd = &cobra.Command{
 
 		note, err := database.GetNoteByID(id)
 		if err != nil {
-			fmt.Printf("Error: %v
-", err)
+			fmt.Printf("Error: %v\n", err)
 			return
 		}
 		if note == nil {
-			fmt.Printf("Error: Note with ID %d not found
-", id)
+			fmt.Printf("Error: Note with ID %d not found\n", id)
 			return
 		}
 
 		// Create a temporary file
 		tmpFile, err := os.CreateTemp("", "jot-*.md")
 		if err != nil {
-			fmt.Printf("Error: Could not create temp file: %v
-", err)
+			fmt.Printf("Error: Could not create temp file: %v\n", err)
 			return
 		}
 		defer os.Remove(tmpFile.Name())
 
 		// Write the current content to the temp file
 		if _, err := tmpFile.WriteString(note.Content); err != nil {
-			fmt.Printf("Error: Could not write to temp file: %v
-", err)
+			fmt.Printf("Error: Could not write to temp file: %v\n", err)
 			return
 		}
 		tmpFile.Close()
@@ -63,29 +59,25 @@ var editCmd = &cobra.Command{
 		editProcess.Stderr = os.Stderr
 
 		if err := editProcess.Run(); err != nil {
-			fmt.Printf("Error: Editor failed: %v
-", err)
+			fmt.Printf("Error: Editor failed: %v\n", err)
 			return
 		}
 
 		// Read the updated content
 		updatedContent, err := os.ReadFile(tmpFile.Name())
 		if err != nil {
-			fmt.Printf("Error: Could not read updated file: %v
-", err)
+			fmt.Printf("Error: Could not read updated file: %v\n", err)
 			return
 		}
 
 		// Save back to database
 		err = database.UpdateNote(id, string(updatedContent))
 		if err != nil {
-			fmt.Printf("Error saving note: %v
-", err)
+			fmt.Printf("Error saving note: %v\n", err)
 			return
 		}
 
-		fmt.Printf("✅ Note %d updated!
-", id)
+		fmt.Printf("✅ Note %d updated!\n", id)
 	},
 }
 
