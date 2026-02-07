@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"strings"
 
 	"github.com/flyme2mars/jotcli/internal/database"
-	"github.com/olekukonko/tablewriter"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +20,7 @@ var searchCmd = &cobra.Command{
 		sqlQuery := `SELECT id, content, tag, priority, created_at FROM notes WHERE content LIKE ? ORDER BY created_at DESC`
 		rows, err := database.DB.Query(sqlQuery, "%"+query+"%")
 		if err != nil {
-			fmt.Printf("Error searching notes: %v\n", err)
+			cmd.Printf("Error searching notes: %v\n", err)
 			return
 		}
 		defer rows.Close()
@@ -29,30 +30,46 @@ var searchCmd = &cobra.Command{
 			var n database.Note
 			err := rows.Scan(&n.ID, &n.Content, &n.Tag, &n.Priority, &n.CreatedAt)
 			if err != nil {
-				fmt.Printf("Error scanning result: %v\n", err)
+				cmd.Printf("Error scanning result: %v\n", err)
 				return
 			}
 			notes = append(notes, n)
 		}
 
 		if len(notes) == 0 {
-			fmt.Printf("No notes found matching '%s'\n", query)
+			cmd.Printf("No notes found matching '%s'\n", query)
 			return
 		}
 
-		table := tablewriter.NewWriter(os.Stdout)
-		table.Header("ID", "Note", "Tag", "Priority", "Created At")
+		headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true).Padding(0, 1)
+		cellStyle := lipgloss.NewStyle().Padding(0, 1)
+		borderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
+		rowsTable := [][]string{}
 		for _, n := range notes {
-			table.Append([]string{
+			content := strings.ReplaceAll(n.Content, "\n", " ")
+			rowsTable = append(rowsTable, []string{
 				fmt.Sprintf("%d", n.ID),
-				n.Content,
+				content,
 				n.Tag,
 				n.Priority,
-				n.CreatedAt.Format("2006-01-02 15:04"),
+				n.CreatedAt.Format("2006-01-02"),
 			})
 		}
-		table.Render()
+
+		t := table.New().
+			Border(lipgloss.NormalBorder()).
+			BorderStyle(borderStyle).
+			StyleFunc(func(row, col int) lipgloss.Style {
+				if row == table.HeaderRow {
+					return headerStyle
+				}
+				return cellStyle
+			}).
+			Headers("ID", "Note", "Tag", "Priority", "Created").
+			Rows(rowsTable...)
+
+		cmd.Println(t.Render())
 	},
 }
 
