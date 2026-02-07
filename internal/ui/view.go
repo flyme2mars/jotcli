@@ -14,12 +14,24 @@ import (
 )
 
 var (
+	// Styles
+	titleStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true).Underline(true)
 	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true)
 	normalStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-	titleStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true).Underline(true)
 	previewStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).BorderForeground(lipgloss.Color("240"))
-	promptStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true)
+	
+	// Status Bar Style
+	statusBarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
+			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"}).
+			MarginTop(1)
+	
+	statusKey = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#FF5F87")).
+			Padding(0, 1).
+			MarginRight(1)
 )
 
 type editFinishedMsg struct{ err error }
@@ -39,7 +51,6 @@ type model struct {
 	editingFile string
 	editingID   int
 	
-	// New fields for input mode
 	mode      mode
 	textInput textinput.Model
 }
@@ -66,7 +77,6 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle Input Mode
 	if m.mode == modeInput {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -89,13 +99,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-
 		var cmd tea.Cmd
 		m.textInput, cmd = m.textInput.Update(msg)
 		return m, cmd
 	}
 
-	// Handle List Mode
 	switch msg := msg.(type) {
 	case editFinishedMsg:
 		if msg.err != nil {
@@ -183,46 +191,55 @@ func (m model) View() string {
 		return "Bye!\n"
 	}
 
-	// View for Input Mode
+	var content string
+
 	if m.mode == modeInput {
-		return fmt.Sprintf(
+		content = fmt.Sprintf(
 			"%s\n\n%s\n\n%s",
 			titleStyle.Render("--- New Note ---"),
 			m.textInput.View(),
 			"(esc to cancel • enter to save)",
 		)
-	}
+	} else if len(m.notes) == 0 {
+		content = "No notes yet. Press 'n' to add one!\n\n(press q to quit)"
+	} else {
+		var s strings.Builder
+		s.WriteString(titleStyle.Render("--- Your Notes ---") + "\n\n")
 
-	// View for List Mode
-	if len(m.notes) == 0 {
-		return "No notes yet. Press 'n' to add one!\n\n(press q to quit)"
-	}
+		for i, note := range m.notes {
+			cursor := "  "
+			displayContent := strings.ReplaceAll(note.Content, "\n", " ")
+			displayContent = strings.ReplaceAll(displayContent, "\\n", " ")
+			
+			if len(displayContent) > 60 {
+				displayContent = displayContent[:57] + "..."
+			}
 
-	s := titleStyle.Render("--- Your Notes ---") + "\n\n"
-
-	for i, note := range m.notes {
-		cursor := "  "
-		displayContent := strings.ReplaceAll(note.Content, "\n", " ")
-		displayContent = strings.ReplaceAll(displayContent, "\\n", " ")
-		line := fmt.Sprintf("[%s] %s", note.Tag, displayContent)
-		if len(line) > 50 {
-			line = line[:47] + "..."
+			if m.cursor == i {
+				cursor = "> "
+				s.WriteString(selectedStyle.Render(fmt.Sprintf("%s%s", cursor, displayContent)) + "\n")
+			} else {
+				s.WriteString(normalStyle.Render(fmt.Sprintf("%s%s", cursor, displayContent)) + "\n")
+			}
 		}
-		if m.cursor == i {
-			cursor = "> "
-			s += selectedStyle.Render(fmt.Sprintf("%s%s", cursor, line)) + "\n"
-		} else {
-			s += normalStyle.Render(fmt.Sprintf("%s%s", cursor, line)) + "\n"
-		}
-	}
 
-	if len(m.notes) > 0 {
 		selectedNote := m.notes[m.cursor]
 		previewContent := strings.ReplaceAll(selectedNote.Content, "\\n", "\n")
 		rendered, _ := glamour.Render(previewContent, "dark")
-		s += "\n" + previewStyle.Render(rendered)
+		s.WriteString("\n" + previewStyle.Render(rendered))
+		
+		content = s.String()
 	}
 
-	s += "\n(n: new • e: edit • x: delete • q: quit)\n"
-	return s
+	// Simple Status Bar
+	var help string
+	if m.mode == modeInput {
+		help = "ENTER: Save • ESC: Cancel"
+	} else {
+		help = "n: New • e: Edit • x: Delete • j/k: Nav • q: Quit"
+	}
+	
+	statusBar := statusBarStyle.Render(statusKey.Render(" JOTCLI ") + help)
+
+	return content + "\n" + statusBar
 }
