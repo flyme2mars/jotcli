@@ -28,10 +28,9 @@ func InitDB() error {
 
 	dbPath := filepath.Join(home, ".jot.db")
 	
-	var errOpen error
-	DB, errOpen = sql.Open("sqlite", dbPath)
-	if errOpen != nil {
-		return errOpen
+	DB, err = OpenDB(dbPath)
+	if err != nil {
+		return err
 	}
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
@@ -44,6 +43,10 @@ func InitDB() error {
 
 	_, err = DB.Exec(createTableSQL)
 	return err
+}
+
+func OpenDB(path string) (*sql.DB, error) {
+	return sql.Open("sqlite", path)
 }
 
 func AddNote(content, tag, priority string) error {
