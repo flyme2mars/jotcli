@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/flyme2mars/jotcli/internal/database"
@@ -24,11 +23,11 @@ var addCmd = &cobra.Command{
 		
 		err := database.AddNote(note, tag, priority)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			cmd.Printf("Error: %v\n", err)
 			return
 		}
 
-		fmt.Printf("✅ Note saved: %s\n", note)
+		cmd.Printf("✅ Note saved: %s\n", note)
 	},
 }
 

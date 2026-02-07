@@ -20,12 +20,12 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		notes, err := database.GetNotes(listTag)
 		if err != nil {
-			fmt.Printf("Error retrieving notes: %v\n", err)
+			cmd.Printf("Error retrieving notes: %v\n", err)
 			return
 		}
 
 		if len(notes) == 0 {
-			fmt.Println("No notes found.")
+			cmd.Println("No notes found.")
 			return
 		}
 
@@ -51,17 +51,17 @@ var listCmd = &cobra.Command{
 		rows := [][]string{}
 		for _, n := range notes {
 			// Clean up newlines for the table view
-			content := strings.ReplaceAll(n.Content, "\n", " ")
-			content = strings.ReplaceAll(content, "\\n", " ")
+			displayContent := strings.ReplaceAll(n.Content, "\n", " ")
+			displayContent = strings.ReplaceAll(displayContent, "\\n", " ")
 
 			// Truncate if too long
-			if len(content) > noteWidth {
-				content = content[:noteWidth-3] + "..."
+			if len(displayContent) > noteWidth {
+				displayContent = displayContent[:noteWidth-3] + "..."
 			}
 
 			rows = append(rows, []string{
 				fmt.Sprintf("%d", n.ID),
-				content,
+				displayContent,
 				n.Tag,
 				n.Priority,
 				n.CreatedAt.Format("2006-01-02"),
@@ -80,7 +80,7 @@ var listCmd = &cobra.Command{
 			Headers("ID", "Note", "Tag", "Priority", "Created").
 			Rows(rows...)
 
-		fmt.Println(t.Render())
+		cmd.Println(t.Render())
 	},
 }
 

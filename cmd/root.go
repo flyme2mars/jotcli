@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/flyme2mars/jotcli/internal/database"
@@ -31,4 +32,10 @@ func Execute() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// SetOutput allows redirecting the CLI output (useful for tests)
+func SetOutput(w io.Writer) {
+	rootCmd.SetOut(w)
+	rootCmd.SetErr(w)
 }
