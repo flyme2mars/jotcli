@@ -87,6 +87,26 @@ func GetNotes(tagFilter string) ([]Note, error) {
 	return notes, nil
 }
 
+func GetNotesBySearch(query string) ([]Note, error) {
+	sqlQuery := `SELECT id, content, tag, priority, created_at FROM notes WHERE content LIKE ? ORDER BY created_at DESC`
+	rows, err := DB.Query(sqlQuery, "%"+query+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notes []Note
+	for rows.Next() {
+		var n Note
+		err := rows.Scan(&n.ID, &n.Content, &n.Tag, &n.Priority, &n.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		notes = append(notes, n)
+	}
+	return notes, nil
+}
+
 func GetNoteByID(id int) (*Note, error) {
 	query := `SELECT id, content, tag, priority, created_at FROM notes WHERE id = ?`
 	row := DB.QueryRow(query, id)

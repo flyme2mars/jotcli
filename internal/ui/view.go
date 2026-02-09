@@ -8,6 +8,7 @@ import (
 
 	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
@@ -47,6 +48,7 @@ type mode int
 const (
 	modeList mode = iota
 	modeInput
+	modeSearch
 )
 
 type model struct {
@@ -57,8 +59,9 @@ type model struct {
 	editingFile string
 	editingID   int
 	
-	mode     mode
-	textArea textarea.Model
+	mode        mode
+	textArea    textarea.Model
+	searchInput textinput.Model
 }
 
 func InitialModel() model {
@@ -68,18 +71,22 @@ func InitialModel() model {
 	ta.Placeholder = "What's on your mind?..."
 	ta.SetWidth(60)
 	ta.SetHeight(10)
-	
-	// Styling the textarea
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle() // Remove that "hard" gray highlight
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	ta.ShowLineNumbers = false
-	
+
+	si := textinput.New()
+	si.Placeholder = "Search notes..."
+	si.Prompt = " / "
+	si.Focus()
+
 	return model{
-		notes:    notes,
-		cursor:   0,
-		err:      err,
-		mode:     modeList,
-		textArea: ta,
+		notes:       notes,
+		cursor:      0,
+		err:         err,
+		mode:        modeList,
+		textArea:    ta,
+		searchInput: si,
 	}
 }
 
@@ -88,20 +95,16 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle Input Mode
+	// 1. Handle Input Mode
 	if m.mode == modeInput {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
-			case "ctrl+s": // Save note
+			case "ctrl+s":
 				content := strings.TrimSpace(m.textArea.Value())
 				if content != "" {
-					err := database.AddNote(content, "inbox", "low")
-					if err != nil {
-						m.err = err
-						return m, nil
-					}
-					m.notes, m.err = database.GetNotes("")
+					database.AddNote(content, "inbox", "low")
+					m.notes, m.err = database.GetNotes(m.searchInput.Value())
 				}
 				m.mode = modeList
 				m.textArea.Reset()
@@ -112,13 +115,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-
 		var cmd tea.Cmd
 		m.textArea, cmd = m.textArea.Update(msg)
 		return m, cmd
 	}
 
-	// Handle List Mode
+	// 2. Handle Search Mode
+	if m.mode == modeSearch {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "enter", "esc":
+				m.mode = modeList
+				return m, nil
+			}
+		}
+
+		var cmd tea.Cmd
+		m.searchInput, cmd = m.searchInput.Update(msg)
+		// Perform search on every keystroke
+		m.notes, m.err = database.GetNotesBySearch(m.searchInput.Value())
+		m.cursor = 0 // Reset cursor when searching
+		return m, cmd
+	}
+
+	// 3. Handle List Mode
 	switch msg := msg.(type) {
 	case editFinishedMsg:
 		if msg.err != nil {
@@ -130,20 +151,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 			return m, nil
 		}
-		
 		content := strings.TrimSpace(string(updatedContent))
 		if content != "" {
-			err = database.UpdateNote(m.editingID, content)
-			if err != nil {
-				m.err = err
-				return m, nil
-			}
+			database.UpdateNote(m.editingID, content)
 		}
-
 		os.Remove(m.editingFile)
 		m.editingFile = ""
 		m.editingID = 0
-		m.notes, m.err = database.GetNotes("")
+		m.notes, m.err = database.GetNotes(m.searchInput.Value())
 		return m, nil
 
 	case tea.KeyMsg:
@@ -159,10 +174,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.notes)-1 {
 				m.cursor++
 			}
+		case "/":
+			m.mode = modeSearch
+			m.searchInput.Focus()
+			return m, nil
 		case "n":
 			m.mode = modeInput
 			m.textArea.Focus()
-			return m, textarea.Blink
+			return m, nil
 		case "e":
 			if len(m.notes) > 0 {
 				note := m.notes[m.cursor]
@@ -192,7 +211,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.err = err
 					return m, nil
 				}
-				m.notes, m.err = database.GetNotes("")
+				m.notes, m.err = database.GetNotesBySearch(m.searchInput.Value())
 				if m.cursor >= len(m.notes) && m.cursor > 0 {
 					m.cursor = len(m.notes) - 1
 				}
@@ -211,49 +230,67 @@ func (m model) View() string {
 		return "Bye!\n"
 	}
 
-	// View for Input Mode
+	var content string
+
 	if m.mode == modeInput {
-		return fmt.Sprintf(
+		content = fmt.Sprintf(
 			"%s\n\n%s\n\n%s",
 			titleStyle.Render("--- New Entry ---"),
 			textAreaStyle.Render(m.textArea.View()),
 			"(esc to cancel • ctrl+s to save)",
 		)
-	}
-
-	// View for List Mode
-	if len(m.notes) == 0 {
-		return "No notes yet. Press 'n' to add one!\n\n(press q to quit)"
-	}
-
-	var s strings.Builder
-	s.WriteString(titleStyle.Render("--- Your Notes ---") + "\n\n")
-
-	for i, note := range m.notes {
-		cursor := "  "
-		displayContent := strings.ReplaceAll(note.Content, "\n", " ")
-		displayContent = strings.ReplaceAll(displayContent, "\\n", " ")
+	} else {
+		var s strings.Builder
 		
-		if len(displayContent) > 60 {
-			displayContent = displayContent[:57] + "..."
-		}
-
-		if m.cursor == i {
-			cursor = "> "
-			s.WriteString(selectedStyle.Render(fmt.Sprintf("%s%s", cursor, displayContent)) + "\n")
+		// Header area: Title or Search
+		if m.mode == modeSearch {
+			s.WriteString(titleStyle.Render("--- Searching ---") + "\n\n")
+			s.WriteString(m.searchInput.View() + "\n\n")
+		} else if m.searchInput.Value() != "" {
+			s.WriteString(titleStyle.Render("--- Filtering: "+m.searchInput.Value()+" ---") + "\n\n")
 		} else {
-			s.WriteString(normalStyle.Render(fmt.Sprintf("%s%s", cursor, displayContent)) + "\n")
+			s.WriteString(titleStyle.Render("--- Your Notes ---") + "\n\n")
 		}
-	}
 
-	selectedNote := m.notes[m.cursor]
-	previewContent := strings.ReplaceAll(selectedNote.Content, "\\n", "\n")
-	rendered, _ := glamour.Render(previewContent, "dark")
-	s.WriteString("\n" + previewStyle.Render(rendered))
+		if len(m.notes) == 0 {
+			s.WriteString("No notes found.\n")
+		} else {
+			for i, note := range m.notes {
+				cursor := "  "
+				displayContent := strings.ReplaceAll(note.Content, "\n", " ")
+				displayContent = strings.ReplaceAll(displayContent, "\\n", " ")
+				if len(displayContent) > 60 {
+					displayContent = displayContent[:57] + "..."
+				}
+
+				if m.cursor == i {
+					cursor = "> "
+					s.WriteString(selectedStyle.Render(fmt.Sprintf("%s%s", cursor, displayContent)) + "\n")
+				} else {
+					s.WriteString(normalStyle.Render(fmt.Sprintf("%s%s", cursor, displayContent)) + "\n")
+				}
+			}
+
+			selectedNote := m.notes[m.cursor]
+			previewContent := strings.ReplaceAll(selectedNote.Content, "\\n", "\n")
+			rendered, _ := glamour.Render(previewContent, "dark")
+			s.WriteString("\n" + previewStyle.Render(rendered))
+		}
+		
+		content = s.String()
+	}
 
 	// Status Bar
-	help := "n: New • e: Edit • x: Delete • j/k: Nav • q: Quit"
+	var help string
+	if m.mode == modeInput {
+		help = "ENTER: New Line • CTRL+S: Save • ESC: Cancel"
+	} else if m.mode == modeSearch {
+		help = "TYPE: Search • ENTER/ESC: Done"
+	} else {
+		help = "n: New • /: Search • e: Edit • x: Delete • j/k: Nav • q: Quit"
+	}
+	
 	statusBar := statusBarStyle.Render(statusKey.Render(" JOTCLI ") + help)
 
-	return s.String() + "\n" + statusBar
+	return content + "\n" + statusBar
 }
