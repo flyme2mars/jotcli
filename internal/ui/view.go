@@ -21,6 +21,12 @@ var (
 	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	previewStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).BorderForeground(lipgloss.Color("240"))
 	
+	// Textarea styling
+	textAreaStyle = lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(0, 1)
+
 	// Status Bar Style
 	statusBarStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
@@ -59,11 +65,15 @@ func InitialModel() model {
 	notes, err := database.GetNotes("")
 	
 	ta := textarea.New()
-	ta.Placeholder = "Write your thoughts here... (Markdown supported)"
+	ta.Placeholder = "What's on your mind?..."
 	ta.SetWidth(60)
 	ta.SetHeight(10)
-	ta.Focus()
-
+	
+	// Styling the textarea
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle() // Remove that "hard" gray highlight
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	ta.ShowLineNumbers = false
+	
 	return model{
 		notes:    notes,
 		cursor:   0,
@@ -84,8 +94,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "ctrl+s": // Save note
-				if m.textArea.Value() != "" {
-					err := database.AddNote(m.textArea.Value(), "inbox", "low")
+				content := strings.TrimSpace(m.textArea.Value())
+				if content != "" {
+					err := database.AddNote(content, "inbox", "low")
 					if err != nil {
 						m.err = err
 						return m, nil
@@ -119,11 +130,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 			return m, nil
 		}
-		err = database.UpdateNote(m.editingID, string(updatedContent))
-		if err != nil {
-			m.err = err
-			return m, nil
+		
+		content := strings.TrimSpace(string(updatedContent))
+		if content != "" {
+			err = database.UpdateNote(m.editingID, content)
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
 		}
+
 		os.Remove(m.editingFile)
 		m.editingFile = ""
 		m.editingID = 0
@@ -146,7 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n":
 			m.mode = modeInput
 			m.textArea.Focus()
-			return m, nil
+			return m, textarea.Blink
 		case "e":
 			if len(m.notes) > 0 {
 				note := m.notes[m.cursor]
@@ -200,7 +216,7 @@ func (m model) View() string {
 		return fmt.Sprintf(
 			"%s\n\n%s\n\n%s",
 			titleStyle.Render("--- New Entry ---"),
-			m.textArea.View(),
+			textAreaStyle.Render(m.textArea.View()),
 			"(esc to cancel • ctrl+s to save)",
 		)
 	}
