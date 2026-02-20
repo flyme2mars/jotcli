@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/flyme2mars/jotcli/internal/config"
 	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/spf13/cobra"
 )
@@ -47,10 +48,7 @@ var editCmd = &cobra.Command{
 		tmpFile.Close()
 
 		// Determine which editor to use
-		editor := os.Getenv("EDITOR")
-		if editor == "" {
-			editor = "vim" // Fallback to vim
-		}
+		editor := config.GetEditor()
 
 		// Open the editor
 		editProcess := exec.Command(editor, tmpFile.Name())

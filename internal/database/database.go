@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/flyme2mars/jotcli/internal/config"
 	_ "modernc.org/sqlite"
 )
 
@@ -21,13 +22,9 @@ type Note struct {
 var DB *sql.DB
 
 func InitDB() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	dbPath := filepath.Join(home, ".jot.db")
+	dbPath := config.GetDBPath()
 	
+	var err error
 	DB, err = OpenDB(dbPath)
 	if err != nil {
 		return err
@@ -46,6 +43,14 @@ func InitDB() error {
 }
 
 func OpenDB(path string) (*sql.DB, error) {
+	// Ensure the directory for the database exists (important for cloud folders!)
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return sql.Open("sqlite", path)
 }
 

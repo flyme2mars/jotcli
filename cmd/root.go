@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/flyme2mars/jotcli/internal/config"
 	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,15 @@ var rootCmd = &cobra.Command{
 	Long:  `A quick and efficient way to capture notes, tag them, and view them in your terminal.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// This runs BEFORE any subcommand
-		err := database.InitDB()
+		// Initialize Config first
+		err := config.InitConfig()
+		if err != nil {
+			fmt.Printf("Error initializing config: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Then Initialize Database
+		err = database.InitDB()
 		if err != nil {
 			fmt.Printf("Error initializing database: %v\n", err)
 			os.Exit(1)

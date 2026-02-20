@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/flyme2mars/jotcli/internal/config"
 	"github.com/flyme2mars/jotcli/internal/database"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -194,10 +195,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				tmpFile.Close()
 				m.editingFile = tmpFile.Name()
 				m.editingID = note.ID
-				editor := os.Getenv("EDITOR")
-				if editor == "" {
-					editor = "vim"
-				}
+				editor := config.GetEditor()
 				c := exec.Command(editor, m.editingFile)
 				return m, tea.ExecProcess(c, func(err error) tea.Msg {
 					return editFinishedMsg{err}
